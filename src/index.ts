@@ -58,6 +58,11 @@ async function owns(env: Env, conversationId: string, sid: string, user: User | 
 }
 
 async function messages(env: Env, id: string, limit = 100): Promise<StoredMessage[]> {
+  return (await env.DB.prepare(`SELECT id,role,COALESCE(display_content,content) AS content,created_at FROM (SELECT id,role,content,display_content,created_at FROM messages
+    WHERE conversation_id=? ORDER BY id DESC LIMIT ?) ORDER BY id ASC`).bind(id, limit).all<StoredMessage>()).results;
+}
+
+async function contextMessages(env: Env, id: string, limit: number): Promise<StoredMessage[]> {
   return (await env.DB.prepare(`SELECT id,role,content,created_at FROM (SELECT id,role,content,created_at FROM messages
     WHERE conversation_id=? ORDER BY id DESC LIMIT ?) ORDER BY id ASC`).bind(id, limit).all<StoredMessage>()).results;
 }
@@ -130,12 +135,23 @@ export default { async fetch(request: Request, env: Env): Promise<Response> {
       if(request.method==="DELETE"){await env.DB.batch([env.DB.prepare("DELETE FROM messages WHERE conversation_id=?").bind(id),env.DB.prepare("DELETE FROM conversations WHERE id=?").bind(id)]);return apiJson({ok:true},sid);}
     }
     if(url.pathname==="/api/chat"&&request.method==="POST"){
-      const body=await request.json() as {content?:unknown;conversationId?:unknown};const content=String(body.content??"").trim().slice(0,MAX_CONTENT_LENGTH),id=String(body.conversationId??"");
+      let content="", displayContent="", id="";
+      if(request.headers.get("content-type")?.includes("multipart/form-data")){
+        const form=await request.formData(); const prompt=String(form.get("content")??"").trim().slice(0,MAX_CONTENT_LENGTH); id=String(form.get("conversationId")??""); const upload=form.get("file");
+        if(!(upload instanceof File)||upload.size===0||upload.size>10*1024*1024)return apiJson({error:"File phải có dung lượng từ 1 byte đến 10 MB."},sid,400);
+        const converted=await env.AI.toMarkdown({name:upload.name,blob:new Blob([await upload.arrayBuffer()],{type:upload.type})}) as unknown as {format:string;data?:string;error?:string;tokens?:number};
+        if(converted.format!=="markdown"||!converted.data)return apiJson({error:converted.error||"Không thể đọc định dạng file này."},sid,400);
+        const extracted=converted.data.slice(0,60_000);
+        content=`[Nội dung được trích xuất từ file: ${upload.name}]\n${extracted}\n[Hết nội dung file]\n\nYêu cầu của người dùng: ${prompt||"Hãy phân tích và tóm tắt file này."}`;
+        displayContent=`${prompt||"Hãy phân tích và tóm tắt file này."}\n\n📎 ${upload.name}`;
+      }else{
+        const body=await request.json() as {content?:unknown;conversationId?:unknown}; content=String(body.content??"").trim().slice(0,MAX_CONTENT_LENGTH); displayContent=content; id=String(body.conversationId??"");
+      }
       if(!content||!validId(id)||!await owns(env,id,sid.id,user))return apiJson({error:"Tin nhắn hoặc hội thoại không hợp lệ"},sid,400);
       const count=await env.DB.prepare("SELECT COUNT(*) count FROM messages WHERE conversation_id=?").bind(id).first<{count:number}>();
-      await env.DB.prepare("INSERT INTO messages(session_id,conversation_id,role,content) VALUES(?,?,'user',?)").bind(sid.id,id,content).run();
-      const title=count?.count===0?titleFrom(content):undefined;await env.DB.prepare("UPDATE conversations SET title=COALESCE(?,title),updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(title??null,id).run();
-      const context=await messages(env,id,MAX_CONTEXT_MESSAGES);const result=await env.AI.run(MODEL,{messages:[{role:"system",content:SYSTEM_PROMPT},...context.map(m=>({role:m.role,content:m.content}))],max_tokens:1024,temperature:.7});
+      await env.DB.prepare("INSERT INTO messages(session_id,conversation_id,role,content,display_content) VALUES(?,?,'user',?,?)").bind(sid.id,id,content,displayContent).run();
+      const title=count?.count===0?titleFrom(displayContent.replace(/\n\n📎.*$/s,"")):undefined;await env.DB.prepare("UPDATE conversations SET title=COALESCE(?,title),updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(title??null,id).run();
+      const context=await contextMessages(env,id,MAX_CONTEXT_MESSAGES);const result=await env.AI.run(MODEL,{messages:[{role:"system",content:SYSTEM_PROMPT},...context.map(m=>({role:m.role,content:m.content}))],max_tokens:1024,temperature:.7});
       const output=result as unknown as {response?:string;choices?:Array<{message?:{content?:string}}>;usage?:{prompt_tokens?:number;completion_tokens?:number}};const response=output.response??output.choices?.[0]?.message?.content;
       if(!response)return apiJson({error:"Model không trả về văn bản"},sid,502);
       await env.DB.prepare("INSERT INTO messages(session_id,conversation_id,role,content) VALUES(?,?,'assistant',?)").bind(sid.id,id,response).run();

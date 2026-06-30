@@ -3,7 +3,7 @@
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot, Check, LogIn, LogOut, Menu, MessageSquarePlus, MoreHorizontal, Pencil, Send, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import { Bot, Check, FileText, LogIn, LogOut, Menu, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Send, Sparkles, Trash2, UserRound, X } from "lucide-react";
 
 type Conversation = { id: string; title: string; created_at?: string; updated_at?: string };
 type Message = { id?: number; role: "user" | "assistant"; content: string };
@@ -31,7 +31,9 @@ export default function Home() {
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authError, setAuthError] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const current = conversations.find((item) => item.id === currentId);
   useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
@@ -58,9 +60,11 @@ export default function Home() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     const content = input.trim();
-    if (!content || loading) return;
+    if ((!content && !attachment) || loading) return;
+    const selectedFile = attachment;
     setInput(""); setLoading(true);
-    setMessages((items) => [...items, { role: "user", content }]);
+    setAttachment(null);
+    setMessages((items) => [...items, { role: "user", content: `${content || "Hãy phân tích và tóm tắt file này."}${selectedFile ? `\n\n📎 ${selectedFile.name}` : ""}` }]);
     try {
       let conversationId = currentId;
       if (!conversationId) {
@@ -69,10 +73,10 @@ export default function Home() {
         setCurrentId(conversationId);
         setConversations((items) => [created.conversation, ...items]);
       }
-      const data = await api<{ response: string; title?: string; usage: Usage }>("/api/chat", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content, conversationId }),
-      });
+      let request: RequestInit;
+      if (selectedFile) { const formData=new FormData(); formData.set("content",content); formData.set("conversationId",conversationId); formData.set("file",selectedFile); request={method:"POST",body:formData}; }
+      else request={method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({content,conversationId})};
+      const data = await api<{ response: string; title?: string; usage: Usage }>("/api/chat", request);
       setMessages((items) => [...items, { role: "assistant", content: data.response }]);
       setUsage(data.usage);
       if (data.title) setConversations((items) => items.map((item) => item.id === conversationId ? { ...item, title: data.title! } : item));
@@ -141,7 +145,7 @@ export default function Home() {
         {loading && <article className="message-row assistant"><div className="avatar"><Sparkles size={16}/></div><div className="thinking"><i/><i/><i/></div></article>}
         <div ref={bottomRef}/>
       </section>
-      <div className="composer-wrap"><form className="composer" onSubmit={submit}><textarea value={input} onChange={(e)=>setInput(e.target.value)} onKeyDown={keyDown} placeholder="Nhắn tin cho Gemma 4…" rows={1}/><button disabled={!input.trim() || loading} aria-label="Gửi"><Send size={18}/></button></form><p><Check size={12}/>Lịch sử được lưu riêng tư trong phiên trình duyệt này</p></div>
+      <div className="composer-wrap">{attachment&&<div className="attachment-chip"><FileText size={16}/><span><strong>{attachment.name}</strong><small>{(attachment.size/1024/1024).toFixed(2)} MB</small></span><button type="button" onClick={()=>setAttachment(null)}><X size={15}/></button></div>}<form className="composer" onSubmit={submit}><input ref={fileRef} className="file-input" type="file" accept="image/*,.pdf,.txt,.md,.csv,.json,.html,.xml,.docx,.xlsx,.pptx" onChange={e=>{const file=e.target.files?.[0];if(file&&file.size<=10*1024*1024)setAttachment(file);else if(file)alert("File tối đa 10 MB");e.target.value=""}}/><button className="attach-button" type="button" title="Đính kèm ảnh hoặc tài liệu" onClick={()=>fileRef.current?.click()}><Paperclip size={19}/></button><textarea value={input} onChange={(e)=>setInput(e.target.value)} onKeyDown={keyDown} placeholder="Nhắn tin hoặc đính kèm file…" rows={1}/><button className="send-button" disabled={(!input.trim()&&!attachment)||loading} aria-label="Gửi"><Send size={18}/></button></form><p><Check size={12}/>Hỗ trợ ảnh, PDF, Word, Excel và file văn bản · tối đa 10 MB</p></div>
     </main>
     {authOpen && <div className="auth-overlay" onMouseDown={()=>setAuthOpen(false)}><div className="auth-card" onMouseDown={e=>e.stopPropagation()}><button className="icon auth-close" onClick={()=>setAuthOpen(false)}><X size={20}/></button><div className="auth-logo"><UserRound size={23}/></div><h2>{authMode==="login"?"Chào mừng trở lại":"Tạo tài khoản"}</h2><p>{authMode==="login"?"Đồng bộ hội thoại trên mọi thiết bị":"Lịch sử chat hiện tại sẽ được giữ lại"}</p><form onSubmit={authenticate}>{authMode==="register"&&<label>Tên hiển thị<input name="name" required maxLength={60} autoComplete="name"/></label>}<label>Email<input name="email" type="email" required autoComplete="email"/></label><label>Mật khẩu<input name="password" type="password" required minLength={8} autoComplete={authMode==="login"?"current-password":"new-password"}/></label>{authError&&<div className="auth-error">{authError}</div>}<button className="auth-submit" disabled={authBusy}>{authBusy?"Đang xử lý…":authMode==="login"?"Đăng nhập":"Đăng ký"}</button></form><button className="auth-switch" onClick={()=>{setAuthMode(authMode==="login"?"register":"login");setAuthError("")}}>{authMode==="login"?"Chưa có tài khoản? Đăng ký":"Đã có tài khoản? Đăng nhập"}</button></div></div>}
   </div>;

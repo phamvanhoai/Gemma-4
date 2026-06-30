@@ -7,7 +7,7 @@
 		"binding": "AI"
 	},
 	"assets": {
-		"directory": "./public",
+		"directory": "./out",
 		"binding": "ASSETS"
 	},
 	"observability": {

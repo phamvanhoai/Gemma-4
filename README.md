@@ -1,6 +1,6 @@
-# Gemma 4 trên Cloudflare Workers AI
+# Gemma 4 · Next.js 16 trên Cloudflare Workers AI
 
-Ứng dụng chat dùng model `@cf/google/gemma-4-26b-a4b-it`, Workers AI binding và D1 để lưu lịch sử theo cookie trình duyệt.
+Frontend dùng Next.js 16 và React 19; Worker dùng model `@cf/google/gemma-4-26b-a4b-it`, Workers AI binding và D1 để lưu nhiều hội thoại theo cookie trình duyệt.
 
 Giao diện hiển thị mức sử dụng neurons ước tính trong ngày dựa trên số token mà model trả về. Dashboard Cloudflare vẫn là nguồn số liệu tính phí chính thức.
 

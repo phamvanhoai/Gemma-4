@@ -1,15 +1,30 @@
 {
   "name": "gemma-4-cloudflare",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "next dev",
+    "build": "next build",
+    "deploy": "next build && wrangler deploy",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "latest",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "latest",
+    "remark-gfm": "latest"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
     "typescript": "latest",
     "wrangler": "latest"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
   }
 }

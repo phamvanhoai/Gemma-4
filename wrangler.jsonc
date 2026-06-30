@@ -1,16 +1,23 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "gemma-4-chat",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-06-30",
-  "ai": {
-    "binding": "AI"
-  },
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS"
-  },
-  "observability": {
-    "enabled": true
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "gemma-4-chat",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-06-30",
+	"ai": {
+		"binding": "AI"
+	},
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "gemma-4-memory",
+			"database_id": "b257f403-de28-4772-b38d-f53aec542908"
+		}
+	]
 }

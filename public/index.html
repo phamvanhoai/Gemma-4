@@ -1,87 +1,37 @@
 <!doctype html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="vi"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Gemma 4 · Cloudflare</title>
   <style>
-    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: #0a0a0b; color: #f6f3ed; display: grid; place-items: center; }
-    main { width: min(800px, 100%); height: 100vh; display: grid; grid-template-rows: auto 1fr auto; padding: 24px; }
-    header { border-bottom: 1px solid #28282c; padding-bottom: 16px; }
-    h1 { font-size: 20px; margin: 0 0 5px; }
-    header p { color: #9999a3; font-size: 13px; margin: 0; }
-    #chat { overflow-y: auto; padding: 24px 0; display: flex; flex-direction: column; gap: 16px; }
-    .message { max-width: 85%; padding: 12px 15px; border-radius: 16px; line-height: 1.55; white-space: pre-wrap; }
-    .user { align-self: flex-end; background: #f48120; color: #17110c; border-bottom-right-radius: 4px; }
-    .assistant { align-self: flex-start; background: #1b1b1f; border: 1px solid #2d2d32; border-bottom-left-radius: 4px; }
-    form { display: grid; grid-template-columns: 1fr auto; gap: 10px; border-top: 1px solid #28282c; padding-top: 16px; }
-    textarea { resize: none; min-height: 50px; max-height: 150px; padding: 13px; border-radius: 12px; border: 1px solid #34343a; background: #17171a; color: inherit; font: inherit; outline: none; }
-    textarea:focus { border-color: #f48120; }
-    button { border: 0; border-radius: 12px; padding: 0 20px; font-weight: 700; background: #f48120; color: #17110c; cursor: pointer; }
-    button:disabled { opacity: .5; cursor: wait; }
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden;background:#0a0a0b;color:#f6f3ed}.app{height:100%;display:grid;grid-template-columns:280px 1fr}.sidebar{background:#111113;border-right:1px solid #29292e;padding:16px;display:grid;grid-template-rows:auto 1fr auto;gap:14px}.brand{display:flex;align-items:center;justify-content:space-between}.brand h1{font-size:18px;margin:0}.icon-btn,.new-chat,.chat-item{border:1px solid #34343a;background:#19191c;color:inherit;border-radius:10px;cursor:pointer}.new-chat{width:100%;padding:11px;font-weight:700;margin-top:14px}.list{overflow-y:auto;display:flex;flex-direction:column;gap:6px}.chat-item{display:grid;grid-template-columns:1fr auto;text-align:left;padding:10px;border-color:transparent}.chat-item.active{background:#29292e;border-color:#414149}.chat-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.menu{background:transparent;border:0;color:#aaa;cursor:pointer}.usage-line{display:flex;justify-content:space-between;font-size:12px;color:#aaaab3}.meter{height:5px;margin-top:6px;border-radius:999px;background:#303036;overflow:hidden}#meter-fill{height:100%;width:0;background:#f48120}.main{min-width:0;height:100%;display:grid;grid-template-rows:auto 1fr auto;padding:20px max(20px,calc((100% - 800px)/2))}.topbar{display:flex;align-items:center;gap:12px;border-bottom:1px solid #28282c;padding-bottom:14px}.topbar h2{font-size:17px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mobile-menu{display:none;padding:8px 10px}.chat{overflow-y:auto;padding:24px 0;display:flex;flex-direction:column;gap:16px}.empty{margin:auto;text-align:center;color:#999}.message{max-width:85%;padding:12px 15px;border-radius:16px;line-height:1.55;white-space:pre-wrap}.user{align-self:flex-end;background:#f48120;color:#17110c;border-bottom-right-radius:4px}.assistant{align-self:flex-start;background:#1b1b1f;border:1px solid #2d2d32;border-bottom-left-radius:4px}form{display:grid;grid-template-columns:1fr auto;gap:10px;border-top:1px solid #28282c;padding-top:16px}textarea{resize:none;min-height:50px;max-height:150px;padding:13px;border-radius:12px;border:1px solid #34343a;background:#17171a;color:inherit;font:inherit;outline:none}textarea:focus{border-color:#f48120}button.send{border:0;border-radius:12px;padding:0 20px;font-weight:700;background:#f48120;color:#17110c;cursor:pointer}button:disabled{opacity:.5;cursor:wait}
+    @media(max-width:700px){.app{grid-template-columns:1fr}.sidebar{position:fixed;z-index:5;inset:0 auto 0 0;width:280px;transform:translateX(-100%);transition:.2s}.sidebar.open{transform:none}.mobile-menu{display:block}.main{padding:14px}.message{max-width:92%}}
   </style>
-</head>
-<body>
-  <main>
-    <header><h1>Gemma 4</h1><p>Chạy miễn phí trên Cloudflare Workers AI</p></header>
-    <section id="chat"><div class="message assistant">Xin chào! Mình có thể giúp gì cho bạn?</div></section>
-    <form id="form">
-      <textarea id="input" required placeholder="Nhập tin nhắn…" aria-label="Tin nhắn"></textarea>
-      <button id="send">Gửi</button>
-    </form>
+</head><body><div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div><div class="brand"><h1>Gemma 4</h1><button class="icon-btn mobile-menu" id="close-menu">✕</button></div><button class="new-chat" id="new-chat">＋ Cuộc trò chuyện mới</button></div>
+    <div class="list" id="conversation-list"></div>
+    <div><div class="usage-line"><span id="usage-text">Đang tải quota…</span><span id="usage-percent"></span></div><div class="meter"><div id="meter-fill"></div></div></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><button class="icon-btn mobile-menu" id="open-menu">☰</button><h2 id="current-title">Cuộc trò chuyện mới</h2></header>
+    <section class="chat" id="chat"></section>
+    <form id="form"><textarea id="input" required placeholder="Nhập tin nhắn…" aria-label="Tin nhắn"></textarea><button class="send" id="send">Gửi</button></form>
   </main>
-  <script>
-    const chat = document.querySelector('#chat');
-    const form = document.querySelector('#form');
-    const input = document.querySelector('#input');
-    const send = document.querySelector('#send');
-    const messages = [{ role: 'system', content: 'Bạn là trợ lý AI hữu ích. Trả lời rõ ràng bằng ngôn ngữ người dùng.' }];
-
-    function add(role, content) {
-      const element = document.createElement('div');
-      element.className = `message ${role}`;
-      element.textContent = content;
-      chat.append(element);
-      chat.scrollTop = chat.scrollHeight;
-      return element;
-    }
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const content = input.value.trim();
-      if (!content) return;
-      messages.push({ role: 'user', content });
-      add('user', content);
-      input.value = '';
-      send.disabled = true;
-      const pending = add('assistant', 'Đang suy nghĩ…');
-      try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ messages }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Yêu cầu thất bại');
-        const answer = data.response || data.result?.response || 'Không có phản hồi.';
-        pending.textContent = answer;
-        messages.push({ role: 'assistant', content: answer });
-      } catch (error) {
-        pending.textContent = `Lỗi: ${error.message}`;
-      } finally {
-        send.disabled = false;
-        input.focus();
-      }
-    });
-
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        form.requestSubmit();
-      }
-    });
-  </script>
-</body>
-</html>
+</div><script>
+const $=s=>document.querySelector(s),chat=$('#chat'),form=$('#form'),input=$('#input'),send=$('#send'),list=$('#conversation-list'),title=$('#current-title'),sidebar=$('#sidebar');
+let conversations=[],currentId=null;
+async function api(path,options){const r=await fetch(path,options),d=await r.json();if(!r.ok)throw new Error(d.error||'Yêu cầu thất bại');return d}
+function add(role,content){const e=document.createElement('div');e.className=`message ${role}`;e.textContent=content;chat.append(e);chat.scrollTop=chat.scrollHeight;return e}
+function empty(){chat.innerHTML='<div class="empty">Bắt đầu một cuộc trò chuyện mới với Gemma 4</div>'}
+function renderList(){list.textContent='';conversations.forEach(c=>{const row=document.createElement('div');row.className=`chat-item ${c.id===currentId?'active':''}`;row.innerHTML='<span class="chat-title"></span><button class="menu" title="Tùy chọn">•••</button>';row.querySelector('.chat-title').textContent=c.title;row.querySelector('.chat-title').onclick=()=>selectConversation(c.id);row.querySelector('.menu').onclick=()=>conversationMenu(c);list.append(row)})}
+async function loadConversations(){const d=await api('/api/conversations');conversations=d.conversations;if(!currentId&&conversations.length)currentId=conversations[0].id;renderList();if(currentId)await selectConversation(currentId);else await createConversation()}
+async function createConversation(){const d=await api('/api/conversations',{method:'POST'});conversations.unshift(d.conversation);currentId=d.conversation.id;title.textContent=d.conversation.title;renderList();empty();input.focus();sidebar.classList.remove('open')}
+async function selectConversation(id){currentId=id;const c=conversations.find(x=>x.id===id);title.textContent=c?.title||'Hội thoại';renderList();chat.textContent='';const d=await api(`/api/conversations/${id}/messages`);if(!d.messages.length)empty();else d.messages.forEach(m=>add(m.role,m.content));sidebar.classList.remove('open')}
+async function conversationMenu(c){const action=prompt('Nhập tên mới, hoặc để trống rồi OK để xóa:',c.title);if(action===null)return;if(action.trim()){const d=await api(`/api/conversations/${c.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({title:action})});c.title=d.title;if(currentId===c.id)title.textContent=d.title;renderList()}else if(confirm(`Xóa “${c.title}”?`)){await api(`/api/conversations/${c.id}`,{method:'DELETE'});conversations=conversations.filter(x=>x.id!==c.id);if(currentId===c.id){currentId=conversations[0]?.id||null;currentId?await selectConversation(currentId):await createConversation()}else renderList()}}
+function showUsage(u){$('#usage-text').textContent=`${u.neurons.toLocaleString('vi-VN')} / ${u.limit.toLocaleString('vi-VN')}`;$('#usage-percent').textContent=`${u.percent}%`;$('#meter-fill').style.width=`${u.percent}%`;$('#meter-fill').style.background=u.percent>=90?'#ef4444':u.percent>=70?'#fbbf24':'#f48120'}
+async function loadUsage(){try{showUsage(await api('/api/usage'))}catch{}}
+form.onsubmit=async e=>{e.preventDefault();const content=input.value.trim();if(!content||!currentId)return;chat.querySelector('.empty')?.remove();add('user',content);input.value='';send.disabled=true;const pending=add('assistant','Đang suy nghĩ…');try{const d=await api('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({content,conversationId:currentId})});pending.textContent=d.response;if(d.title){const c=conversations.find(x=>x.id===currentId);c.title=d.title;title.textContent=d.title;renderList()}if(d.usage)showUsage(d.usage)}catch(err){pending.textContent=`Lỗi: ${err.message}`}finally{send.disabled=false;input.focus()}};
+input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}};
+$('#new-chat').onclick=createConversation;$('#open-menu').onclick=()=>sidebar.classList.add('open');$('#close-menu').onclick=()=>sidebar.classList.remove('open');
+loadConversations().catch(err=>add('assistant',`Lỗi: ${err.message}`));loadUsage();
+</script></body></html>

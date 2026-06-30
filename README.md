@@ -1,6 +1,8 @@
 # Gemma 4 trên Cloudflare Workers AI
 
-Ứng dụng chat tối giản dùng model `@cf/google/gemma-4-26b-a4b-it` và Workers AI binding.
+Ứng dụng chat dùng model `@cf/google/gemma-4-26b-a4b-it`, Workers AI binding và D1 để lưu lịch sử theo cookie trình duyệt.
+
+Giao diện hiển thị mức sử dụng neurons ước tính trong ngày dựa trên số token mà model trả về. Dashboard Cloudflare vẫn là nguồn số liệu tính phí chính thức.
 
 ## Chạy và triển khai
 

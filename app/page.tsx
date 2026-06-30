@@ -76,8 +76,8 @@ export default function Home() {
       let request: RequestInit;
       if (selectedFile) { const formData=new FormData(); formData.set("content",content); formData.set("conversationId",conversationId); formData.set("file",selectedFile); request={method:"POST",body:formData}; }
       else request={method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({content,conversationId})};
-      const data = await api<{ response: string; title?: string; usage: Usage }>("/api/chat", request);
-      setMessages((items) => [...items, { role: "assistant", content: data.response }]);
+      const data = await api<{ response: string; title?: string; truncated?: boolean; usage: Usage }>("/api/chat", request);
+      setMessages((items) => [...items, { role: "assistant", content: data.response + (data.truncated ? "\n\n> Phản hồi đã đạt giới hạn độ dài. Hãy yêu cầu **tiếp tục** để xem phần còn lại." : "") }]);
       setUsage(data.usage);
       if (data.title) setConversations((items) => items.map((item) => item.id === conversationId ? { ...item, title: data.title! } : item));
     } catch (error) {

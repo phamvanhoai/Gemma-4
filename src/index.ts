@@ -135,9 +135,9 @@ export default { async fetch(request: Request, env: Env): Promise<Response> {
       if(request.method==="DELETE"){await env.DB.batch([env.DB.prepare("DELETE FROM messages WHERE conversation_id=?").bind(id),env.DB.prepare("DELETE FROM conversations WHERE id=?").bind(id)]);return apiJson({ok:true},sid);}
     }
     if(url.pathname==="/api/chat"&&request.method==="POST"){
-      let content="", displayContent="", id="";
+      let content="", displayContent="", id="", hasAttachment=false;
       if(request.headers.get("content-type")?.includes("multipart/form-data")){
-        const form=await request.formData(); const prompt=String(form.get("content")??"").trim().slice(0,MAX_CONTENT_LENGTH); id=String(form.get("conversationId")??""); const upload=form.get("file");
+        const form=await request.formData(); const prompt=String(form.get("content")??"").trim().slice(0,MAX_CONTENT_LENGTH); id=String(form.get("conversationId")??""); const upload=form.get("file"); hasAttachment=true;
         if(!(upload instanceof File)||upload.size===0||upload.size>10*1024*1024)return apiJson({error:"File phải có dung lượng từ 1 byte đến 10 MB."},sid,400);
         const converted=await env.AI.toMarkdown({name:upload.name,blob:new Blob([await upload.arrayBuffer()],{type:upload.type})}) as unknown as {format:string;data?:string;error?:string;tokens?:number};
         if(converted.format!=="markdown"||!converted.data)return apiJson({error:converted.error||"Không thể đọc định dạng file này."},sid,400);
@@ -151,12 +151,12 @@ export default { async fetch(request: Request, env: Env): Promise<Response> {
       const count=await env.DB.prepare("SELECT COUNT(*) count FROM messages WHERE conversation_id=?").bind(id).first<{count:number}>();
       await env.DB.prepare("INSERT INTO messages(session_id,conversation_id,role,content,display_content) VALUES(?,?,'user',?,?)").bind(sid.id,id,content,displayContent).run();
       const title=count?.count===0?titleFrom(displayContent.replace(/\n\n📎.*$/s,"")):undefined;await env.DB.prepare("UPDATE conversations SET title=COALESCE(?,title),updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(title??null,id).run();
-      const context=await contextMessages(env,id,MAX_CONTEXT_MESSAGES);const result=await env.AI.run(MODEL,{messages:[{role:"system",content:SYSTEM_PROMPT},...context.map(m=>({role:m.role,content:m.content}))],max_tokens:1024,temperature:.7});
-      const output=result as unknown as {response?:string;choices?:Array<{message?:{content?:string}}>;usage?:{prompt_tokens?:number;completion_tokens?:number}};const response=output.response??output.choices?.[0]?.message?.content;
+      const context=await contextMessages(env,id,MAX_CONTEXT_MESSAGES);const result=await env.AI.run(MODEL,{messages:[{role:"system",content:SYSTEM_PROMPT},...context.map(m=>({role:m.role,content:m.content}))],max_completion_tokens:hasAttachment?4096:2048,temperature:.7});
+      const output=result as unknown as {response?:string;choices?:Array<{message?:{content?:string};finish_reason?:string}>;usage?:{prompt_tokens?:number;completion_tokens?:number}};const response=output.response??output.choices?.[0]?.message?.content;
       if(!response)return apiJson({error:"Model không trả về văn bản"},sid,502);
       await env.DB.prepare("INSERT INTO messages(session_id,conversation_id,role,content) VALUES(?,?,'assistant',?)").bind(sid.id,id,response).run();
       await env.DB.prepare(`INSERT INTO daily_usage(day,input_tokens,output_tokens,requests) VALUES(?,?,?,1) ON CONFLICT(day) DO UPDATE SET input_tokens=input_tokens+excluded.input_tokens,output_tokens=output_tokens+excluded.output_tokens,requests=requests+1`).bind(utcDay(),output.usage?.prompt_tokens??0,output.usage?.completion_tokens??0).run();
-      return apiJson({response,title,usage:await usage(env)},sid);
+      return apiJson({response,title,truncated:output.choices?.[0]?.finish_reason==="length",usage:await usage(env)},sid);
     }
     return apiJson({error:"Không tìm thấy API"},sid,404);
   }catch(error){return apiJson({error:error instanceof Error?error.message:"Lỗi không xác định"},sid,500);}
